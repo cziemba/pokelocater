@@ -1,31 +1,45 @@
 <!DOCTYPE html>
 <head>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <link rel="shortcut icon" href="favicon/favicon.png"/>
     <style>
-    html { height: 100% }
-    body { height: 100%; margin: 0px; padding: 0px }
-    #map_wrapper {
-        height: 100%;
-    }
+        html {
+            height: 100%
+        }
 
-    #map_canvas {
-        width: 100%;
-        height: 100%;
-    }
+        body {
+            height: 100%;
+            margin: 0px;
+            padding: 0px
+        }
+
+        #map_wrapper {
+            height: 100%;
+        }
+
+        #map_canvas {
+            width: 100%;
+            height: 100%;
+        }
     </style>
 </head>
 <body>
 
-    <div id="map_wrapper">
-        <div id="map_canvas" class="mapping">Detecting location...</div>
-    </div>
+<div id="map_wrapper">
+    <div id="map_canvas" class="mapping">Detecting location...</div>
+</div>
 
-    <script>
+<script>
+
+    // force HTTPS (except localhost)
+    if (window.location.protocol != "https:" && window.location.href.indexOf("localhost") === -1) {
+        window.location.href = "https:" + window.location.href.substring(window.location.protocol.length);
+    }
 
     var poke_markers = [];
     var map;
 
-    jQuery(function($) {
+    jQuery(function ($) {
         // Asynchronously Load the map API 
         var script = document.createElement('script');
         script.src = "//maps.googleapis.com/maps/api/js?key=AIzaSyCP8jZ4BELXsSkPZedx7sZe9jbbLd96tiA&sensor=false&callback=map_api_loaded";
@@ -37,7 +51,7 @@
     }
 
     function init_map(location) {
-    	$('#map_canvas').html('');
+        $('#map_canvas').html('');
         map = new google.maps.Map(document.getElementById("map_canvas"), {
             center: {lat: location.coords.latitude, lng: location.coords.longitude},
             mapTypeId: 'roadmap',
@@ -45,41 +59,43 @@
         });
         map.setTilt(45);
         add_trainer(location.coords.latitude, location.coords.longitude);
-    	build_map_update(location, 0);
+        build_map_update(location, 0);
     }
 
     function build_map_update(location, step) {
-    	$.ajax({
-    		type: 'POST', 
-    		url: '/get_poke', 
-    		data: { location: location.coords.latitude.toString()+', '+location.coords.longitude.toString(),
-                    step: step },
-    		dataType: 'json',
-    		success: function (data) {
-    			console.log("pokemon_data", data.data);
+        $.ajax({
+            type: 'POST',
+            url: '/get_poke',
+            data: {
+                location: location.coords.latitude.toString() + ', ' + location.coords.longitude.toString(),
+                step: step
+            },
+            dataType: 'json',
+            success: function (data) {
+                console.log("pokemon_data", data.data);
                 console.log("step", data.step);
                 var next_step = data.step;
 
-    			$.each(data.data, function(k, v) {
+                $.each(data.data, function (k, v) {
                     add_poke(v);
-    			});
-    			setTimeout(function(){
-    				navigator.geolocation.getCurrentPosition(function(location){
+                });
+                setTimeout(function () {
+                    navigator.geolocation.getCurrentPosition(function (location) {
                         build_map_update(location, next_step);
                     });
-    			}, 0);
-    		},
-    		error: function(xhr, ajaxOptions, thrownError) {
+                }, 0);
+            },
+            error: function (xhr, ajaxOptions, thrownError) {
                 console.log('Error while attempting to retrieve poke locations:');
                 console.log(thrownError);
-                console.log('params: '+location+' '+step);
-    			setTimeout(function(){
-    				navigator.geolocation.getCurrentPosition(function(location){
+                console.log('params: ' + location + ' ' + step);
+                setTimeout(function () {
+                    navigator.geolocation.getCurrentPosition(function (location) {
                         build_map_update(location, step);
                     });
-    			}, 5000);
-    		}
-    	});
+                }, 5000);
+            }
+        });
     }
 
     function add_trainer(lat, lon) {
@@ -92,7 +108,9 @@
     }
 
     function add_poke(poke) {
-        if (poke_exists(poke.id, poke.latitude, poke.longitude)) { return; }
+        if (poke_exists(poke.id, poke.latitude, poke.longitude)) {
+            return;
+        }
         poke_markers.push([poke.id, poke.latitude, poke.longitude]);
         var infoWindow = new google.maps.InfoWindow();
 
@@ -104,12 +122,12 @@
         });
 
         var expire_time = new Date().getTime() + poke.time_left * 1000;
-        marker.addListener('click', function() {
+        marker.addListener('click', function () {
             infoWindow.setContent("<div class='info_content'><h3>" + poke.name + "</h3><p>Expires in " + seconds_remaining(expire_time) + " seconds.</p></div>");
             infoWindow.open(map, marker);
         });
 
-        setTimeout(function() {
+        setTimeout(function () {
             remove_poke([poke.id, poke.latitude, poke.longitude]);
             marker.setMap(null);
             infoWindow.close();
@@ -140,5 +158,5 @@
     function seconds_remaining(expire_time) {
         return Math.floor((expire_time - new Date().getTime()) / 1000);
     }
-    </script>
+</script>
 </body>
